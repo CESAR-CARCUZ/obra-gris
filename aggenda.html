@@ -221,31 +221,23 @@
         return result;
     }
 
-    // FORMATEADOR DE FECHA NATIVO E INTELIGENTE (CORREGIDO)
+    // FORMATEADOR DE FECHA NATIVO E INTELIGENTE
     function formatEventDate(dateString) {
         if (!dateString) return '--.--.--';
         
-        const timestamp = Date.parse(dateString);
-        if (isNaN(timestamp)) {
-            // Si el motor nativo falla por alguna razón, el sistema limpia guiones/diagonales como salvavidas
-            const cleanStr = dateString.replace(/-/g, '/');
-            const parts = cleanStr.split('/');
+        if (dateString.includes('/')) {
+            const parts = dateString.split('/');
             if (parts.length === 3) {
-                return `${parts[1].padStart(2,'0')}.${parts[0].padStart(2,'0')}.${parts[2].substring(2)}`;
+                const anoCorto = parts[2].trim().substring(2);
+                const dia = parts[1].padStart(2, '0');
+                const mes = parts[0].padStart(2, '0');
+                return `${dia}.${mes}.${anoCorto}`;
             }
-            return dateString;
         }
+        return dateString;
+    }
 
-        // Si el motor nativo la lee con éxito, extraemos los componentes reales de la fecha
-        const dateObj = new Date(timestamp);
-        const dia = String(dateObj.getDate()).padStart(2, '0');
-        const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const ano = String(dateObj.getFullYear()).substring(2);
-
-        return `${dia}.${mes}.${ano}`;
-    } // <--- AQUÍ ESTÁ LA LLAVE QUE FALTABA PARA CERRAR LA FUNCIÓN
-
-    // RENDERIZAR FILAS EN LA TABLA INTERACTIVA (FUSIONADA CON MEMORIA CLONADA)
+    // RENDERIZAR FILAS EN LA TABLA INTERACTIVA (CON FILTRO Y EFECTO IMÁN CONTROLADO)
     function renderTable(events) {
         container.innerHTML = '';
         
@@ -255,21 +247,19 @@
             return;
         }
 
-        // ============================================================
-        // ¡LA CLAVE! CLONAMOS EL ARRAY PARA NO DESTRUIR LA MEMORIA ORIGINAL
-        // ============================================================
+        // CLONACIÓN DE MEMORIA SEGURA
         let displayEvents = [...events];
 
-        // 1. PASO UNO: ORDEN CRONOLÓGICO SEGURO SOBRE EL CLON (MM/DD/AAAA)
+        // 1. ORDEN CRONOLÓGICO SEGURO CALIBRADO PARA MM/DD/AAAA
         displayEvents.sort((a, b) => {
             const getNumericValue = (dateStr) => {
                 if (!dateStr) return 0;
                 const clean = dateStr.replace(/-/g, '/').trim();
                 const parts = clean.split('/');
                 if (parts.length === 3) {
-                    let m = parseInt(parts[0], 10); // MES
-                    let d = parseInt(parts[1], 10); // DÍA
-                    let y = parseInt(parts[2], 10); // AÑO
+                    let m = parseInt(parts[0], 10);
+                    let d = parseInt(parts[1], 10);
+                    let y = parseInt(parts[2], 10);
                     if (y < 100) y += 2000;
                     if (!isNaN(m) && !isNaN(d) && !isNaN(y)) {
                         return (y * 10000) + (m * 100) + d;
@@ -280,19 +270,18 @@
             return getNumericValue(a.fechaRaw) - getNumericValue(b.fechaRaw);
         });
 
-        // 2. PASO DOS: EFECTO IMÁN SOBRE EL CLON (Flota la categoría activa al inicio)
+        // 2. EFECTO IMÁN: Flota la categoría activa al inicio manteniendo su fecha interna
         if (currentCategory !== 'all') {
             displayEvents.sort((a, b) => {
                 const aMatches = a.categoria === currentCategory;
                 const bMatches = b.categoria === currentCategory;
-                
-                if (aMatches && !bMatches) return -1; // Sube 'a'
-                if (!aMatches && bMatches) return 1;  // Sube 'b'
-                return 0; // Si ambos coinciden, preserva el orden de fecha del Paso 1
+                if (aMatches && !bMatches) return -1;
+                if (!aMatches && bMatches) return 1;
+                return 0;
             });
         }
 
-        // 3. PASO TRES: Dibujar las filas usando el clon ordenado (displayEvents)
+        // 3. RENDERIZACIÓN FÍSICA EN PANTALLA
         displayEvents.forEach(event => {
             const displayDate = formatEventDate(event.fechaRaw);
             const tr = document.createElement('tr');
@@ -320,13 +309,12 @@
             container.appendChild(tr);
         });
 
-        // 4. PASO CUATRO: Aplicar las opacidades brutalistas a las filas en pantalla
+        // 4. CONTROL DE OPACIDAD BRUTALISTA RESPONSIVA
         const rows = document.querySelectorAll('.event-row');
         let matchCounter = 0;
 
         rows.forEach(row => {
             const rowCategory = row.getAttribute('data-category');
-            
             if (currentCategory === 'all' || rowCategory === currentCategory) {
                 row.classList.remove('row-hidden');
                 row.classList.add('row-visible');
@@ -342,108 +330,53 @@
         }
     }
 
+    // CONEXIÓN FETCH A TU DB
+    async function initSystem() {
+        try {
+            const response = await fetch(csvUrl);
+            if (!response.ok) throw new Error('ERROR_CONEXION_BASE_DATOS');
+            const csvText = await response.text();
+            
+            globalEvents = parseCSV(csvText);
+            
+            if(totalCount) totalCount.innerText = globalEvents.length < 10 ? '0' + globalEvents.length : globalEvents.length;
+            if(matchCount) matchCount.innerText = globalEvents.length < 10 ? '0' + globalEvents.length : globalEvents.length;
+            
+            renderTable(globalEvents);
+        } catch (error) {
+            console.error(error);
+            container.innerHTML = `<tr><td colspan="5" class="text-center font-bold py-10 text-red-600">// SYSTEM_CRITICAL_ERROR: FAIL_DB_FETCH</td></tr>`;
+        }
+    }
+
     // FILTRO INTELIGENTE CON APAGADO DE PALANCA
     function filterCategory(cat) {
-        // Si el usuario toca la categoría que ya estaba activa, se apaga el filtro y vuelve a 'all'
         if (currentCategory === cat && cat !== 'all') {
             currentCategory = 'all';
         } else {
             currentCategory = cat;
         }
 
-        // Actualizar estados visuales de los botones industriales
         document.querySelectorAll('.industrial-tag').forEach(btn => {
             btn.classList.remove('active');
-            
-            // Si el filtro está apagado, activar el botón VER_TODO
             if (currentCategory === 'all' && btn.innerText.includes('TODO')) {
                 btn.classList.add('active');
             } 
-            // Si hay filtro activo, encender el botón correspondiente
             else if (btn.innerText.includes(currentCategory) && currentCategory !== 'all') {
                 btn.classList.add('active');
             }
         });
 
-        // Ejecutar el nuevo ordenamiento y renderizado
         applyFilterAndSearch();
     }
 
-// LOGICA UNIFICADA DE ORDENAMIENTO CRONOLÓGICO INDESTRUCTIBLE
+    // LÓGICA FILTRADORA DE BÚSQUEDA
     function applyFilterAndSearch() {
         const term = searchInput ? searchInput.value.toUpperCase() : '';
-        
-        // 1. Filtrar primero por el término escrito en el buscador
         let filteredEvents = globalEvents.filter(event => {
             return event.titulo.toUpperCase().includes(term);
         });
-
-        // 2. ORDEN CRONOLÓGICO ULTRA-ESTRICTO (Conversión matemática manual)
-        filteredEvents.sort((a, b) => {
-            console.log("AUDITORÍA_FECHAS -> Evento A:", a.titulo, "| Fecha A:", a.fechaRaw, "|| Evento B:", b.titulo, "| Fecha B:", b.fechaRaw);
-            const getNumericValue = (dateStr) => {
-                if (!dateStr) return 0;
-                
-                // Limpiar cualquier espacio extraño y separar por diagonales o guiones
-                const cleanStr = dateStr.replace(/-/g, '/').trim();
-                const parts = cleanStr.split('/');
-                
-                if (parts.length === 3) {
-                    let month = parseInt(parts[0], 10);
-                    let day = parseInt(parts[1], 10);
-                    let year = parseInt(parts[2], 10);
-                    
-                    // Si por error el año viene de 2 dígitos (ej: 26 -> 2026)
-                    if (year < 100) year += 2000;
-                    
-                    // Validar que sean números reales antes de calcular
-                    if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
-                        // Creamos un valor numérico puro para comparar: Año*10000 + Mes*100 + Día
-                        // Ejemplo: 15 de Junio de 2026 se convierte en: 20260615 (Un número entero perfecto)
-                        return (year * 10000) + (month * 100) + day;
-                    }
-                }
-                return 0;
-            };
-
-            return getNumericValue(a.fechaRaw) - getNumericValue(b.fechaRaw);
-        });
-
-        // 3. EFECTO IMÁN: Si hay una categoría seleccionada, flota al inicio manteniendo su orden cronológico
-        if (currentCategory !== 'all') {
-            filteredEvents.sort((a, b) => {
-                const aMatches = a.categoria === currentCategory;
-                const bMatches = b.categoria === currentCategory;
-                
-                if (aMatches && !bMatches) return -1;
-                if (!aMatches && bMatches) return 1;
-                return 0;
-            });
-        }
-
-        // 4. Mandar la lista final limpia al renderizador
         renderTable(filteredEvents);
-
-        // 5. Aplicar los estilos visuales brutalistas (opacidad)
-        const rows = document.querySelectorAll('.event-row');
-        let matchCounter = 0;
-
-        rows.forEach(row => {
-            const rowCategory = row.getAttribute('data-category');
-            
-            if (currentCategory === 'all' || rowCategory === currentCategory) {
-                row.classList.remove('row-hidden');
-                row.classList.add('row-visible');
-                matchCounter++;
-            } else {
-                row.classList.remove('row-visible');
-                row.classList.add('row-hidden');
-            }
-        });
-
-        if (matchCount) {
-            matchCount.innerText = matchCounter < 10 ? '0' + matchCounter : matchCounter;
-        }
     }
 
     if (searchInput) {
