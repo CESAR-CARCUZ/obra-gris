@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>SISTEMA_BUSQUEDA_V1</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+        body { font-family: 'Space Mono', monospace; background-color: #e0e0e0; color: #000; }
+        
+        .brutalist-table { border-collapse: collapse; width: 100%; background: white; }
+        .brutalist-table td, .brutalist-table th { border: 2px solid black; padding: 1.2rem; }
+        
+        .clickable-cell {
+            cursor: pointer;
+        }
+
+        .industrial-tag {
+            border: 2px solid black;
+            padding: 4px 12px;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            background: #fff;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .industrial-tag:hover, .industrial-tag.active {
+            background: black;
+            color: white;
+        }
+        .industrial-tag::before { content: '●'; font-size: 8px; }
+
+        .flyer-thumb {
+            width: 70px;
+            height: 100px;
+            filter: grayscale(100%) contrast(150%);
+            transition: all 0.4s ease;
+            object-fit: cover;
+            border: 1px solid black;
+        }
+        .event-row:hover .flyer-thumb { 
+            filter: grayscale(0%) contrast(100%); 
+            transform: scale(1.05); 
+        }
+
+        .row-hidden { opacity: 0.1; filter: blur(4px); pointer-events: none; transition: all 0.3s ease; }
+        .row-visible { opacity: 1; filter: blur(0); transition: all 0.3s ease; }
+    </style>
+</head>
+<body class="uppercase p-4 md:p-10">
+
+    <section class="mb-10 space-y-6">
+        <div class="flex flex-col md:flex-row justify-between items-end border-b-4 border-black pb-6 gap-6">
+            <div class="w-full max-w-2xl">
+                <span class="text-[10px] font-bold tracking-widest text-zinc-500">QUERY_INPUT // BUSCAR_EVENTO:</span>
+                <input type="text" id="searchInput" placeholder="ESCRIBE_TERMINO..." 
+                    class="w-full text-4xl md:text-7xl font-bold bg-transparent outline-none placeholder:text-zinc-300">
+            </div>
+            <div class="text-right font-bold text-[10px]">
+                SISTEMA_REF: <span id="matchCount">00</span>/<span id="totalCount">00</span><br>
+                LOC: GUATEMALA_CITY
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+            <button class="industrial-tag active" onclick="filterCategory('all')">VER_TODO</button>
+            <button class="industrial-tag" onclick="filterCategory('MÚSICA')">CAT_01:MÚSICA</button>
+            <button class="industrial-tag" onclick="filterCategory('ARTE')">CAT_02:ARTE</button>
+            <button class="industrial-tag" onclick="filterCategory('RAVES')">CAT_03:RAVES</button>
+            <button class="industrial-tag" onclick="filterCategory('FERIAS')">CAT_04:FERIAS</button>
+        </div>
+    </section>
+
+    <main class="overflow-x-auto">
+        <table class="brutalist-table" id="eventsTable">
+            <thead class="bg-black text-white text-[9px] tracking-[0.3em]">
+                <tr>
+                    <th>DATE</th>
+                    <th>PREVIEW</th>
+                    <th>EVENT_IDENTIFIER</th>
+                    <th class="hidden md:table-cell">LOCATION</th>
+                    <th>STATUS</th>
+                </tr>
+            </thead>
+            <tbody id="eventsContainer">
+                <tr>
+                    <td colspan="5" class="text-center font-bold text-sm py-10 tracking-widest">SISTEMA_CARGANDO_CONEXION_...</td>
+                </tr>
+            </tbody>
+        </table>
+    </main>
+
+    <div id="eventDetail" class="fixed inset-0 bg-white z-[100] hidden flex-col md:flex-row p-4 md:p-8 h-screen w-screen overflow-hidden">
+        <button onclick="closeDetail()" class="absolute top-4 right-4 text-3xl font-bold bg-black text-white px-3 py-1 z-[110] hover:scale-110 transition-transform">X</button>
+
+        <div class="flex flex-col md:flex-row w-full h-full border-4 border-black gap-0 overflow-hidden">
+            <div class="w-full md:w-1/2 h-1/2 md:h-full border-b-4 md:border-b-0 md:border-r-4 border-black bg-zinc-200">
+                <img id="detailImg" src="" class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all">
+            </div>
+
+            <div class="w-full md:w-1/2 h-1/2 md:h-full flex flex-col bg-white overflow-hidden">
+                <div class="p-6 flex-grow flex flex-col justify-center border-b-2 border-black bg-white overflow-hidden relative">
+                    <div class="w-full overflow-hidden">
+                        <h2 id="detailTitle" class="font-bold tracking-tighter leading-[0.8] italic uppercase whitespace-nowrap inline-block origin-left transition-all">CARGANDO...</h2>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <span class="text-[9px] font-bold bg-black text-white px-2 py-1 tracking-widest">STATUS: CONFIRMED</span>
+                        <span class="text-[9px] font-bold border border-black px-2 py-1 tracking-widest italic uppercase">SYS_REF_2026</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 border-b-2 border-black">
+                    <div class="p-4 border-r-2 border-black">
+                        <span class="text-[9px] block opacity-50 font-bold">// FECHA</span>
+                        <p id="detailDate" class="text-xl md:text-2xl font-bold italic">--.--.26</p>
+                    </div>
+                    <div class="p-4">
+                        <span class="text-[9px] block opacity-50 font-bold">// UBICACIÓN</span>
+                        <p id="detailLoc" class="text-xl md:text-2xl font-bold italic">GUATEMALA</p>
+                    </div>
+                </div>
+
+                <div class="p-6 bg-zinc-100 italic text-[10px] md:text-xs leading-tight border-b-2 border-black">
+                    ADVERTENCIA: ESTA ES UNA ACTIVIDAD DE CARÁCTER INDEPENDIENTE. LOS PROTOCOLOS DE ACCESO SERÁN ENVIADOS POR CORREO ELECTRÓNICO 24 HORAS ANTES DEL INICIO.
+                </div>
+
+                <div class="p-4 mt-auto">
+                    <button class="w-full bg-black text-white py-6 text-2xl md:text-4xl font-bold hover:bg-zinc-900 transition-all">
+                        ADQUIRIR_ACCESO_
+                    </button>
+                    <p class="text-[8px] mt-4 opacity-40 text-center tracking-[0.4em]">CÓDIGO_REF: {USER_ID_AUTH}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // URL DE EXPORTACIÓN CSV DE TU HOJA PÚBLICA
+    const sheetId = '1tSyyiysUjTcgV1Pm-r_5p2-jQRdlhSoVPT7k44R02FM';
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=1202457632`; 
+
+    const container = document.getElementById('eventsContainer');
+    const matchCount = document.getElementById('matchCount');
+    const totalCount = document.getElementById('totalCount');
+    const searchInput = document.getElementById('searchInput');
+    const modal = document.getElementById('eventDetail');
+    
+    let globalEvents = [];
+    let currentCategory = 'all';
+
+    // FUNCIÓN PARA PROCESAR EL CSV DE GOOGLE
+    function parseCSV(text) {
+        const lines = text.split('\n');
+        const result = [];
+        // Saltamos la fila 0 (encabezados de Google Form)
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            
+            // Expresión regular para separar por comas respetando cometas si las hay
+            const matches = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(',');
+            const cleanCells = matches.map(cell => cell.replace(/^"|"$/g, '').trim());
+            
+            if (cleanCells.length >= 6) {
+                result.push({
+                    timestamp: cleanCells[0],
+                    fechaRaw: cleanCells[1],  // Formato: AAAA-MM-DD del calendario nativo
+                    titulo: cleanCells[2],
+                    categoria: cleanCells[3].toUpperCase(),
+                    ubicacion: cleanCells[4],
+                    status: cleanCells[5],
+                    flyerUrl: cleanCells[6] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500' // Placeholder negro abstracto por defecto
+                });
+            }
+        }
+        return result;
+    }
+
+    // FORMATEADOR DE FECHA: Transforma "AAAA-MM-DD" o "DD/MM/AAAA" a "DD.MM"
+    function formatEventDate(dateString) {
+        if (!dateString) return '--.--';
+        // Si viene en formato AAAA-MM-DD (Estándar HTML/Google)
+        if (dateString.includes('-')) {
+            const parts = dateString.split('-');
+            if (parts.length === 3) return `${parts[2]}.${parts[1]}`;
+        }
+        // Si viene en formato DD/MM/AAAA
+        if (dateString.includes('/')) {
+            const parts = dateString.split('/');
+            if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
+        }
+        return dateString;
+    }
+
+    // RENDERIZAR LAS FILAS EN EL HTML
+    function renderTable(events) {
+        container.innerHTML = '';
+        if (events.length === 0) {
+            container.innerHTML = `<tr><td colspan="5" class="text-center font-bold py-10 opacity-40">// NO_SE_ENCONTRARON_REGISTROS</td></tr>`;
+            if(matchCount) matchCount.innerText = '00';
+            return;
+        }
+
+        events.forEach(event => {
+            const displayDate = formatEventDate(event.fechaRaw);
+            const tr = document.createElement('tr');
+            tr.className = 'event-row row-visible border-b-2 border-black';
+            tr.setAttribute('data-category', event.categoria);
+            tr.setAttribute('data-location', event.ubicacion);
+            tr.setAttribute('data-img', event.flyerUrl);
+
+            tr.innerHTML = `
+                <td class="text-center font-bold cursor-pointer font-bold">${displayDate}</td>
+                <td class="flex justify-center p-4 clickable-cell">
+                    <img src="${event.flyerUrl}" class="flyer-thumb" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200'">
+                </td>
+                <td class="clickable-cell">
+                    <div class="text-2xl md:text-5xl font-bold tracking-tighter event-name">${event.titulo}</div>
+                    <span class="text-[10px] border border-black px-1 category-label">${event.categoria}</span>
+                </td>
+                <td class="hidden md:table-cell text-sm opacity-60 font-bold">${event.ubicacion}</td>
+                <td class="text-center text-[10px] font-bold tracking-tight">${event.status}</td>
+            `;
+
+            // Hacer que las celdas clave de la fila abran el detalle modal
+            tr.querySelectorAll('.clickable-cell').forEach(cell => {
+                cell.addEventListener('click', () => openDetail(tr));
+            });
+
+            container.appendChild(tr);
+        });
+
+        // Actualizar contadores del sistema
+        const visibleCount = events.length;
+        if(matchCount) matchCount.innerText = visibleCount < 10 ? '0' + visibleCount : visibleCount;
+    }
+
+    // CONEXIÓN ASÍNCRONA (FETCH API) CON GOOGLE SHEETS
+    async function initSystem() {
+        try {
+            const response = await fetch(csvUrl);
+            if (!response.ok) throw new Error('ERROR_CONEXION_BASE_DATOS');
+            const csvText = await response.text();
+            
+            globalEvents = parseCSV(csvText);
+            
+            // Setear el contador total fijo de la base de datos
+            if(totalCount) totalCount.innerText = globalEvents.length < 10 ? '0' + globalEvents.length : globalEvents.length;
+            if(matchCount) matchCount.innerText = globalEvents.length < 10 ? '0' + globalEvents.length : globalEvents.length;
+            
+            renderTable(globalEvents);
+        } catch (error) {
+            console.error(error);
+            container.innerHTML = `<tr><td colspan="5" class="text-center font-bold py-10 text-red-600">// SYSTEM_CRITICAL_ERROR: FAIL_DB_FETCH</td></tr>`;
+        }
+    }
+
+    // FILTRO POR CATEGORÍAS (Música, Arte, Raves, Ferias)
+    function filterCategory(cat) {
+        currentCategory = cat;
+        document.querySelectorAll('.industrial-tag').forEach(btn => {
+            btn.classList.remove('active');
+            if(btn.innerText.includes(cat) || (cat === 'all' && btn.innerText.includes('TODO'))) btn.classList.add('active');
+        });
+        applyFilterAndSearch();
+    }
+
+    // LOGICA UNIFICADA: BUSCADOR + FILTRO
+    function applyFilterAndSearch() {
+        const term = searchInput ? searchInput.value.toUpperCase() : '';
+        const rows = document.querySelectorAll('.event-row');
+        let count = 0;
+
+        rows.forEach(row => {
+            const name = row.querySelector('.event-name').innerText.toUpperCase();
+            const category = row.getAttribute('data-category');
+            
+            const matchesCategory = (currentCategory === 'all' || category === currentCategory);
+            const matchesSearch = name.includes(term);
+
+            if (matchesCategory && matchesSearch) {
+                row.classList.remove('row-hidden'); row.classList.add('row-visible');
+                count++;
+            } else {
+                row.classList.remove('row-visible'); row.classList.add('row-hidden');
+            }
+        });
+
+        if(matchCount) matchCount.innerText = count < 10 ? '0' + count : count;
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilterAndSearch);
+    }
+
+    // SISTEMA MODAL DE DETALLE
+    const title = document.getElementById('detailTitle');
+    const dateDisp = document.getElementById('detailDate');
+    const locDisp = document.getElementById('detailLoc');
+    const imgDisp = document.getElementById('detailImg');
+
+    function openDetail(row) {
+        const nameText = row.querySelector('.event-name').innerText;
+        const dateText = row.cells[0].innerText;
+        const locText = row.getAttribute('data-location');
+        const imgSource = row.getAttribute('data-img');
+
+        title.innerText = nameText;
+        dateDisp.innerText = dateText;
+        locDisp.innerText = locText;
+        imgDisp.src = imgSource;
+
+        title.style.fontSize = "clamp(2rem, 8vw, 7rem)";
+        setTimeout(() => {
+            const containerWidth = title.parentElement.offsetWidth;
+            const textWidth = title.scrollWidth;
+            if (textWidth > containerWidth) {
+                const ratio = (containerWidth / textWidth) * 0.9;
+                const currentSize = parseFloat(window.getComputedStyle(title).fontSize);
+                title.style.fontSize = (currentSize * ratio) + "px";
+            }
+        }, 10);
+
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDetail() {
+        modal.classList.add('hidden'); modal.classList.remove('flex');
+        document.body.style.overflow = 'auto';
+    }
+
+    // ENTRADA EN LÍNEA
+    document.addEventListener('DOMContentLoaded', initSystem);
+</script>
+</body>
+</html>
