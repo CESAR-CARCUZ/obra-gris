@@ -342,6 +342,7 @@
 
         // 2. ORDEN CRONOLÓGICO ULTRA-ESTRICTO (Conversión matemática manual)
         filteredEvents.sort((a, b) => {
+            console.log("AUDITORÍA_FECHAS -> Evento A:", a.titulo, "| Fecha A:", a.fechaRaw, "|| Evento B:", b.titulo, "| Fecha B:", b.fechaRaw);
             const getNumericValue = (dateStr) => {
                 if (!dateStr) return 0;
                 
