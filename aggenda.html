@@ -95,19 +95,19 @@
         </table>
     </main>
 
-    <div id="eventDetail" class="fixed inset-0 bg-white z-[100] hidden p-4 md:p-8 h-screen w-screen overflow-hidden">
-        <button onclick="closeDetail()" class="absolute top-6 right-6 text-2xl font-bold bg-black text-white px-4 py-2 z-[120] hover:scale-105 active:scale-95 transition-transform">X</button>
+    <div id="eventDetail" class="fixed inset-0 bg-white z-[100] hidden p-4 md:p-8 h-screen w-screen overflow-y-auto">
+        <button onclick="closeDetail()" class="fixed top-6 right-6 text-2xl font-bold bg-black text-white px-4 py-2 z-[120] hover:scale-105 active:scale-95 transition-transform border border-white shadow-lg">X</button>
 
-        <div class="flex flex-col md:flex-row w-full h-full border-4 border-black gap-0 overflow-y-auto md:overflow-hidden bg-white">
+        <div class="flex flex-col md:flex-row w-full min-h-full border-4 border-black bg-white mb-10 md:mb-0">
             
-            <div class="w-full md:w-1/2 h-[45vh] md:h-full border-b-4 md:border-b-0 md:border-r-4 border-black bg-zinc-200 flex-shrink-0">
+            <div class="w-full md:w-1/2 min-h-[40vh] md:h-auto border-b-4 md:border-b-0 md:border-r-4 border-black bg-zinc-200 flex-shrink-0">
                 <img id="detailImg" src="" class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all">
             </div>
 
-            <div class="w-full md:w-1/2 h-auto md:h-full flex flex-col bg-white overflow-hidden p-6 justify-between gap-6">
+            <div class="w-full md:w-1/2 p-6 flex flex-col justify-between bg-white gap-6">
                 
                 <div class="space-y-6">
-                    <div class="w-full overflow-hidden border-b border-black pb-4">
+                    <div class="w-full border-b border-black pb-4">
                         <span class="text-[9px] block opacity-50 font-bold mb-1">// EVENTO_TITULO_</span>
                         <h2 id="detailTitle" class="font-bold tracking-tighter leading-[0.9] italic uppercase text-3xl md:text-5xl lg:text-6xl break-words">CARGANDO...</h2>
                         <div class="flex gap-2 mt-4">
@@ -127,12 +127,15 @@
                         </div>
                     </div>
 
-                    <div id="detailDescContainer" class="p-4 bg-zinc-100 italic text-[10px] md:text-xs leading-tight border border-black max-h-[15vh] md:max-h-[25vh] overflow-y-auto">
-                        ADVERTENCIA: ESTA ES UNA ACTIVIDAD DE CARÁCTER INDEPENDIENTE. LOS PROTOCOLOS DE ACCESO SERÁN ENVIADOS POR EL CANAL DE COMPRA-VENTA DEL ORGANIZADOR.
+                    <div>
+                        <span class="text-[9px] block opacity-50 font-bold mb-2">// DETALLES_OPERATIVOS</span>
+                        <div id="detailDescContainer" class="p-4 bg-zinc-100 italic text-[10px] md:text-xs leading-tight border border-black max-h-[200px] overflow-y-auto">
+                            ADVERTENCIA: ESTA ES UNA ACTIVIDAD DE CARÁCTER INDEPENDIENTE. LOS PROTOCOLOS DE ACCESO SERÁN ENVIADOS POR EL CANAL DE COMPRA-VENTA DEL ORGANIZADOR.
+                        </div>
                     </div>
                 </div>
 
-                <div class="w-full pt-4 border-t border-black md:border-t-0 mt-auto">
+                <div class="w-full pt-6 border-t-2 border-black mt-6">
                     <button id="detailBuyBtn" class="w-full bg-black text-white py-4 md:py-6 text-xl md:text-3xl font-bold hover:bg-zinc-900 active:bg-zinc-800 transition-all uppercase tracking-wider">
                         ADQUIRIR_ACCESO_ ↗
                     </button>
@@ -144,7 +147,6 @@
     </div>
 
 <script>
-    // URL DE EXPORTACIÓN CSV DE TU HOJA PÚBLICA
     const sheetId = '1tSyyiysUjTcgV1Pm-r_5p2-jQRdlhSoVPT7k44R02FM';
     const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=1202457632`; 
 
@@ -157,7 +159,6 @@
     let globalEvents = [];
     let currentCategory = 'all';
 
-    // FUNCIÓN PARSEADORA BLINDADA
     function parseCSV(text) {
         const lines = text.split('\n');
         const result = [];
@@ -211,8 +212,8 @@
                     categoria: cleanCells[3].toUpperCase(),
                     ubicacion: cleanCells[4],
                     status: cleanCells[5],
-                    descripcion: cleanCells[7] || '', // Columna reservada para el párrafo corto
-                    linkCompra: cleanCells[8] || '#',  // Columna reservada para el link de redirección
+                    descripcion: cleanCells[7] || '', 
+                    linkCompra: cleanCells[8] || '#',  
                     flyerUrl: finalFlyerUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500'
                 });
             }
@@ -220,7 +221,6 @@
         return result;
     }
 
-    // FORMATEADOR DE FECHA A DD.MM.AA
     function formatEventDate(dateString) {
         if (!dateString) return '--.--.--';
         
@@ -243,7 +243,6 @@
         return dateString;
     }
 
-    // RENDERIZAR FILAS EN LA TABLA INTERACTIVA
     function renderTable(events) {
         container.innerHTML = '';
         if (events.length === 0) {
@@ -259,8 +258,9 @@
             tr.setAttribute('data-category', event.categoria);
             tr.setAttribute('data-id', event.id);
 
+            // CORRECCIÓN DE INTERACCIÓN: Solo el Flyer y el Nombre llevan la clase 'clickable-cell'
             tr.innerHTML = `
-                <td class="text-center font-bold cursor-pointer px-2 whitespace-nowrap clickable-cell">${displayDate}</td>
+                <td class="text-center font-bold px-2 whitespace-nowrap">${displayDate}</td>
                 <td class="flex justify-center p-4 clickable-cell">
                     <img src="${event.flyerUrl}" class="flyer-thumb" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200'">
                 </td>
@@ -268,10 +268,11 @@
                     <div class="text-2xl md:text-5xl font-bold tracking-tighter event-name">${event.titulo}</div>
                     <span class="text-[10px] border border-black px-1 category-label">${event.categoria}</span>
                 </td>
-                <td class="hidden md:table-cell text-sm opacity-60 font-bold clickable-cell">${event.ubicacion}</td>
-                <td class="text-center text-[10px] font-bold tracking-tight clickable-cell">${event.status}</td>
+                <td class="hidden md:table-cell text-sm opacity-60 font-bold">${event.ubicacion}</td>
+                <td class="text-center text-[10px] font-bold tracking-tight">${event.status}</td>
             `;
 
+            // Escuchar el evento de clic ÚNICAMENTE en los contenedores autorizados
             tr.querySelectorAll('.clickable-cell').forEach(cell => {
                 cell.addEventListener('click', () => openDetail(event.id));
             });
@@ -283,7 +284,6 @@
         if(matchCount) matchCount.innerText = visibleCount < 10 ? '0' + visibleCount : visibleCount;
     }
 
-    // CONEXIÓN ASÍNCRONA (FETCH API) CON GOOGLE SHEETS
     async function initSystem() {
         try {
             const response = await fetch(csvUrl);
@@ -338,7 +338,6 @@
         searchInput.addEventListener('input', applyFilterAndSearch);
     }
 
-    // ELEMENTOS DE CONTROL DEL DETALLE MODAL RESPONSIVO
     const title = document.getElementById('detailTitle');
     const dateDisp = document.getElementById('detailDate');
     const locDisp = document.getElementById('detailLoc');
@@ -357,24 +356,21 @@
         imgDisp.src = targetEvent.flyerUrl;
         statusTag.innerText = `STATUS: ${targetEvent.status.toUpperCase()}`;
         
-        // Cargar reseña si existe en tu Google Sheets
         if (targetEvent.descripcion) {
             descContainer.innerText = targetEvent.descripcion.toUpperCase();
         } else {
             descContainer.innerText = "ADVERTENCIA: ESTA ES UNA ACTIVIDAD DE CARÁCTER INDEPENDIENTE. LOS PROTOCOLOS DE ACCESO SERÁN ENVIADOS POR EL CANAL DE COMPRA-VENTA DEL ORGANIZADOR.";
         }
 
-        // Configurar botón de Adquirir Acceso (Opción 2)
         if (targetEvent.linkCompra && targetEvent.linkCompra !== '#') {
             buyBtn.onclick = () => window.open(targetEvent.linkCompra, '_blank');
             buyBtn.style.opacity = "1";
             buyBtn.style.pointerEvents = "auto";
         } else {
             buyBtn.onclick = null;
-            buyBtn.style.opacity = "0.5"; // Deshabilitado visualmente si no hay link
+            buyBtn.style.opacity = "0.5"; 
         }
 
-        // Ajuste automático brutalista de tamaño de texto
         title.style.fontSize = "clamp(2rem, 6vw, 4rem)";
         setTimeout(() => {
             const containerWidth = title.parentElement.offsetWidth;
