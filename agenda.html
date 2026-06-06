@@ -181,23 +181,38 @@
             
             if (cleanCells.length >= 6) {
                 // Convertidor de URL de Google Drive para hacerla compatible con la web
+                // Convertidor de URL de Google Drive para hacerla compatible con la web
                 let rawFlyerUrl = cleanCells[6] || '';
                 let finalFlyerUrl = rawFlyerUrl;
                 
                 if (rawFlyerUrl.includes('drive.google.com')) {
-                    // Extrae el ID único del archivo de Google Drive
-                    let parts = rawFlyerUrl.split('/d/');
-                    if (parts[1]) {
-                        let id = parts[1].split('/')[0];
-                        // Lo transforma en un enlace de renderizado directo
+                    let id = '';
+                    
+                    // Caso 1: Formato con /open?id= (El que tienes actualmente)
+                    if (rawFlyerUrl.includes('id=')) {
+                        let parts = rawFlyerUrl.split('id=');
+                        if (parts[1]) {
+                            id = parts[1].split('&')[0]; // Extrae el ID antes de cualquier otro parámetro
+                        }
+                    } 
+                    // Caso 2: Formato tradicional con /d/
+                    else if (rawFlyerUrl.includes('/d/')) {
+                        let parts = rawFlyerUrl.split('/d/');
+                        if (parts[1]) {
+                            id = parts[1].split('/')[0];
+                        }
+                    }
+                    
+                    // Si logramos extraer el ID, armamos el enlace de renderizado directo
+                    if (id) {
                         finalFlyerUrl = `https://drive.google.com/uc?export=view&id=${id}`;
                     }
                 }
 
                 result.push({
                     timestamp: cleanCells[0],
-                    fechaRaw: cleanCells[2],  // Tu mapeo corregido de Fecha
-                    titulo: cleanCells[1],   // Tu mapeo corregido de Título
+                    fechaRaw: cleanCells[2],
+                    titulo: cleanCells[1],
                     categoria: cleanCells[3].toUpperCase(),
                     ubicacion: cleanCells[4],
                     status: cleanCells[5],
