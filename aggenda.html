@@ -329,7 +329,7 @@
         applyFilterAndSearch();
     }
 
-    // LOGICA UNIFICADA DE ORDENAMIENTO CRONOLÓGICO + FILTRO + BUSCADOR
+    // LOGICA UNIFICADA DE ORDENAMIENTO CRONOLÓGICO ULTRA-ROBUSTO
     function applyFilterAndSearch() {
         const term = searchInput ? searchInput.value.toUpperCase() : '';
         
@@ -338,35 +338,57 @@
             return event.titulo.toUpperCase().includes(term);
         });
 
-        // 2. ORDEN CRONOLÓGICO AUTOMÁTICO (El más cercano en fecha va primero)
+        // 2. ORDEN CRONOLÓGICO ESTRICTO (Mapeo manual de componentes)
         filteredEvents.sort((a, b) => {
-            // Convertimos las strings de fecha "AAAA-MM-DD" o "DD/MM/AAAA" a objetos Date comparables
-            const parseToDate = (dateStr) => {
-                if (!dateStr) return new Date(0);
-                if (dateStr.includes('-')) return new Date(dateStr); // Formato AAAA-MM-DD
-                if (dateStr.includes('/')) {
-                    const parts = dateStr.split('/'); // Formato DD/MM/AAAA
-                    return new Date(parts[2], parts[1] - 1, parts[0]);
+            const parseToTimestamp = (dateStr) => {
+                if (!dateStr) return 0;
+                
+                let day, month, year;
+                
+                // Si viene separado por guiones (ej. 2026-06-15 o 15-06-2026)
+                if (dateStr.includes('-')) {
+                    const parts = dateStr.split('-');
+                    if (parts[0].length === 4) { // Formato AAAA-MM-DD
+                        year = parseInt(parts[0], 10);
+                        month = parseInt(parts[1], 10) - 1;
+                        day = parseInt(parts[2], 10);
+                    } else { // Formato DD-MM-AAAA
+                        day = parseInt(parts[0], 10);
+                        month = parseInt(parts[1], 10) - 1;
+                        year = parseInt(parts[2], 10);
+                    }
+                } 
+                // Si viene separado por diagonales (ej. 15/06/2026)
+                else if (dateStr.includes('/')) {
+                    const parts = dateStr.split('/');
+                    day = parseInt(parts[0], 10);
+                    month = parseInt(parts[1], 10) - 1;
+                    year = parseInt(parts[2], 10);
                 }
-                return new Date(0);
+                
+                // Crear la fecha asegurando que no se desfase por la zona horaria (seteando hora a mediodía)
+                if (day && !isNaN(month) && year) {
+                    return new Date(year, month, day, 12, 0, 0).getTime();
+                }
+                return 0;
             };
 
-            return parseToDate(a.fechaRaw) - parseToDate(b.fechaRaw);
+            return parseToTimestamp(a.fechaRaw) - parseToTimestamp(b.fechaRaw);
         });
 
-        // 3. EFECTO IMÁN: Si hay una categoría seleccionada, esa categoría salta al inicio de la lista
+        // 3. EFECTO IMÁN: Si hay una categoría seleccionada, flota al inicio manteniendo su orden cronológico
         if (currentCategory !== 'all') {
             filteredEvents.sort((a, b) => {
                 const aMatches = a.categoria === currentCategory;
                 const bMatches = b.categoria === currentCategory;
                 
-                if (aMatches && !bMatches) return -1; // Si 'a' coincide, va arriba
-                if (!aMatches && bMatches) return 1;  // Si 'b' coincide, va arriba
+                if (aMatches && !bMatches) return -1;
+                if (!aMatches && bMatches) return 1;
                 return 0;
             });
         }
 
-        // 4. Mandar la lista final (Ordenada por Fecha + Categoría) al renderizador
+        // 4. Mandar la lista final limpia al renderizador
         renderTable(filteredEvents);
 
         // 5. Aplicar los estilos visuales brutalistas (opacidad)
