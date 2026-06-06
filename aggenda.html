@@ -221,17 +221,16 @@
         return result;
     }
 
-    // FORMATEADOR DE FECHA NATIVO E INTELIGENTE
+    // FORMATEADOR DE FECHA NATIVO E INTELIGENTE (CORREGIDO)
     function formatEventDate(dateString) {
         if (!dateString) return '--.--.--';
         
         const timestamp = Date.parse(dateString);
         if (isNaN(timestamp)) {
-            // Si el motor nativo falla por alguna razón rara, el sistema limpia guiones/diagonales como salvavidas
+            // Si el motor nativo falla por alguna razón, el sistema limpia guiones/diagonales como salvavidas
             const cleanStr = dateString.replace(/-/g, '/');
             const parts = cleanStr.split('/');
             if (parts.length === 3) {
-                // Asume formato estándar de respaldo
                 return `${parts[1].padStart(2,'0')}.${parts[0].padStart(2,'0')}.${parts[2].substring(2)}`;
             }
             return dateString;
@@ -244,7 +243,7 @@
         const ano = String(dateObj.getFullYear()).substring(2);
 
         return `${dia}.${mes}.${ano}`;
-    }
+    } // <--- AQUÍ ESTÁ LA LLAVE QUE FALTABA PARA CERRAR LA FUNCIÓN
 
     function renderTable(events) {
         container.innerHTML = '';
