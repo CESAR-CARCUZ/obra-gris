@@ -245,7 +245,7 @@
         return `${dia}.${mes}.${ano}`;
     } // <--- AQUÍ ESTÁ LA LLAVE QUE FALTABA PARA CERRAR LA FUNCIÓN
 
-    // RENDERIZAR FILAS EN LA TABLA INTERACTIVA (CON FILTRO DE ORDENACIÓN DIRECTO)
+    // RENDERIZAR FILAS EN LA TABLA INTERACTIVA CORREGIDA
     function renderTable(events) {
         container.innerHTML = '';
         
@@ -255,35 +255,29 @@
             return;
         }
 
-        // ============================================================
-        // DETECTOR NUCLEAR DE FECHAS (SABER QUÉ RECIBE LA TABLA)
-        // ============================================================
-        console.log("--- INICIO DE AUDITORÍA EN TABLA ---");
-        events.forEach(e => {
-            console.log(`Evento: ${e.titulo} | Valor en fechaRaw: "${e.fechaRaw}"`);
-        });
-        // ============================================================
-
-        // ORDENAMIENTO CRONOLÓGICO DIRECTO EN RENDER
+        // ORDENAMIENTO CRONOLÓGICO PERFECTO (Calibrado para MM/DD/AAAA)
         events.sort((a, b) => {
-            const getVal = (str) => {
-                if (!str) return 0;
-                const clean = str.replace(/-/g, '/').trim();
+            const getNumericValue = (dateStr) => {
+                if (!dateStr) return 0;
+                const clean = dateStr.replace(/-/g, '/').trim();
                 const parts = clean.split('/');
                 if (parts.length === 3) {
-                    let m = parseInt(parts[0], 10);
-                    let d = parseInt(parts[1], 10);
-                    let y = parseInt(parts[2], 10);
+                    let m = parseInt(parts[0], 10); // MES
+                    let d = parseInt(parts[1], 10); // DÍA
+                    let y = parseInt(parts[2], 10); // AÑO
                     if (y < 100) y += 2000;
                     if (!isNaN(m) && !isNaN(d) && !isNaN(y)) {
+                        // Devuelve un entero puro AAAAMMDD para comparar matemáticamente
                         return (y * 10000) + (m * 100) + d;
                     }
                 }
                 return 0;
             };
-            return getVal(a.getVal) - getVal(b.getVal); // Cambiado temporalmente a orden puro
+            // CORREGIDO: Ahora sí compara las propiedades reales de los eventos
+            return getNumericValue(a.fechaRaw) - getNumericValue(b.fechaRaw);
         });
 
+        // Dibujar las filas en la pantalla en orden cronológico estricto
         events.forEach(event => {
             const displayDate = formatEventDate(event.fechaRaw);
             const tr = document.createElement('tr');
