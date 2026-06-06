@@ -152,46 +152,84 @@
     let globalEvents = [];
     let currentCategory = 'all';
 
-    // FUNCIÓN PARA PROCESAR EL CSV DE GOOGLE
+    // FUNCIÓN MEJORADA: Separa por comas pero respeta textos largos con comas internas
     function parseCSV(text) {
         const lines = text.split('\n');
         const result = [];
-        // Saltamos la fila 0 (encabezados de Google Form)
+        
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i].trim()) continue;
             
-            // Expresión regular para separar por comas respetando cometas si las hay
-            const matches = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(',');
-            const cleanCells = matches.map(cell => cell.replace(/^"|"$/g, '').trim());
+            // Expresión regular avanzada para segmentar filas CSV respetando comillas
+            let cleanCells = [];
+            let row = lines[i];
+            let insideQuote = false;
+            let currentCell = '';
+            
+            for (let j = 0; j < row.length; j++) {
+                let char = row[j];
+                if (char === '"') {
+                    insideQuote = !insideQuote; // Alternar estado
+                } else if (char === ',' && !insideQuote) {
+                    cleanCells.push(currentCell.trim());
+                    currentCell = '';
+                } else {
+                    currentCell += char;
+                }
+            }
+            cleanCells.push(currentCell.trim()); // Añadir la última celda
             
             if (cleanCells.length >= 6) {
-    result.push({
-        timestamp: cleanCells[0],
-        fechaRaw: cleanCells[2],  // Cambiado a 2 para atrapar la fecha real
-        titulo: cleanCells[1],   // Cambiado a 1 para atrapar el texto real ("EVENTO", "UP")
-        categoria: cleanCells[3].toUpperCase(),
-        ubicacion: cleanCells[4],
-        status: cleanCells[5],
-        flyerUrl: cleanCells[6] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500'
-    });
-}
+                // Convertidor de URL de Google Drive para hacerla compatible con la web
+                let rawFlyerUrl = cleanCells[6] || '';
+                let finalFlyerUrl = rawFlyerUrl;
+                
+                if (rawFlyerUrl.includes('drive.google.com')) {
+                    // Extrae el ID único del archivo de Google Drive
+                    let parts = rawFlyerUrl.split('/d/');
+                    if (parts[1]) {
+                        let id = parts[1].split('/')[0];
+                        // Lo transforma en un enlace de renderizado directo
+                        finalFlyerUrl = `https://drive.google.com/uc?export=view&id=${id}`;
+                    }
+                }
+
+                result.push({
+                    timestamp: cleanCells[0],
+                    fechaRaw: cleanCells[2],  // Tu mapeo corregido de Fecha
+                    titulo: cleanCells[1],   // Tu mapeo corregido de Título
+                    categoria: cleanCells[3].toUpperCase(),
+                    ubicacion: cleanCells[4],
+                    status: cleanCells[5],
+                    flyerUrl: finalFlyerUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500'
+                });
+            }
         }
         return result;
     }
 
-    // FORMATEADOR DE FECHA: Transforma "AAAA-MM-DD" o "DD/MM/AAAA" a "DD.MM"
+    // FORMATEADOR DE FECHA: Transforma "AAAA-MM-DD" o "DD/MM/AAAA" a "DD.MM.AA"
     function formatEventDate(dateString) {
-        if (!dateString) return '--.--';
-        // Si viene en formato AAAA-MM-DD (Estándar HTML/Google)
+        if (!dateString) return '--.--.--';
+        
+        // Si viene en formato AAAA-MM-DD (Estándar de Google/Calendario)
         if (dateString.includes('-')) {
-            const parts = dateString.split('-');
-            if (parts.length === 3) return `${parts[2]}.${parts[1]}`;
+            const parts = dateString.split('-'); // [AAAA, MM, DD]
+            if (parts.length === 3) {
+                const anoCorto = parts[0].substring(2); // Toma los últimos 2 dígitos del año (ej: "2026" -> "26")
+                return `${parts[2]}.${parts[1]}.${anoCorto}`;
+            }
         }
-        // Si viene en formato DD/MM/AAAA
+        
+        // Si viene en formato DD/MM/AAAA (Formato regional)
         if (dateString.includes('/')) {
-            const parts = dateString.split('/');
-            if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
+            const parts = dateString.split('/'); // [DD, MM, AAAA]
+            if (parts.length === 3) {
+                const anoCorto = parts[2].trim().substring(2); // Toma los últimos 2 dígitos del año
+                return `${parts[0]}.${parts[1]}.${anoCorto}`;
+            }
         }
+        
         return dateString;
     }
 
