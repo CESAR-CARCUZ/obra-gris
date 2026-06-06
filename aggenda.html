@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏴</text></svg>">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>SISTEMA_BUSQUEDA_V1</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+        body { font-family: 'Space Mono', monospace; background-color: #e0e0e0; color: #000; }
+        
+        .brutalist-table { border-collapse: collapse; width: 100%; background: white; }
+        .brutalist-table td, .brutalist-table th { border: 2px solid black; padding: 1.2rem; }
+        
+        .clickable-cell {
+            cursor: pointer;
+        }
+
+        .industrial-tag {
+            border: 2px solid black;
+            padding: 4px 12px;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            background: #fff;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .industrial-tag:hover, .industrial-tag.active {
+            background: black;
+            color: white;
+        }
+        .industrial-tag::before { content: '●'; font-size: 8px; }
+
+        .flyer-thumb {
+            width: 70px;
+            height: 100px;
+            filter: grayscale(100%) contrast(150%);
+            transition: all 0.4s ease;
+            object-fit: cover;
+            border: 1px solid black;
+        }
+        .event-row:hover .flyer-thumb { 
+            filter: grayscale(0%) contrast(100%); 
+            transform: scale(1.05); 
+        }
+
+        .row-hidden { opacity: 0.1; filter: blur(4px); pointer-events: none; transition: all 0.3s ease; }
+        .row-visible { opacity: 1; filter: blur(0); transition: all 0.3s ease; }
+    </style>
+</head>
+<body class="uppercase p-4 md:p-10">
+
+    <section class="mb-10 space-y-6">
+        <div class="flex flex-col md:flex-row justify-between items-end border-b-4 border-black pb-6 gap-6">
+            <div class="w-full max-w-2xl">
+                <span class="text-[10px] font-bold tracking-widest text-zinc-500">QUERY_INPUT // BUSCAR_EVENTO:</span>
+                <input type="text" id="searchInput" placeholder="ESCRIBE_TERMINO..." 
+                    class="w-full text-4xl md:text-7xl font-bold bg-transparent outline-none placeholder:text-zinc-300">
+            </div>
+            <div class="text-right font-bold text-[10px]">
+                SISTEMA_REF: <span id="matchCount">00</span>/<span id="totalCount">00</span><br>
+                LOC: GUATEMALA_CITY
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+            <button class="industrial-tag active" onclick="filterCategory('all')">VER_TODO</button>
+            <button class="industrial-tag" onclick="filterCategory('MÚSICA')">CAT_01:MÚSICA</button>
+            <button class="industrial-tag" onclick="filterCategory('ARTE')">CAT_02:ARTE</button>
+            <button class="industrial-tag" onclick="filterCategory('RAVES')">CAT_03:RAVES</button>
+            <button class="industrial-tag" onclick="filterCategory('FERIAS')">CAT_04:FERIAS</button>
+        </div>
+    </section>
+
+    <main class="overflow-x-auto">
+        <table class="brutalist-table" id="eventsTable">
+            <thead class="bg-black text-white text-[9px] tracking-[0.3em]">
+                <tr>
+                    <th>DATE</th>
+                    <th>PREVIEW</th>
+                    <th>EVENT_IDENTIFIER</th>
+                    <th class="hidden md:table-cell">LOCATION</th>
+                    <th>STATUS</th>
+                </tr>
+            </thead>
+            <tbody id="eventsContainer">
+                <tr>
+                    <td colspan="5" class="text-center font-bold text-sm py-10 tracking-widest">SISTEMA_CARGANDO_CONEXION_...</td>
+                </tr>
+            </tbody>
+        </table>
+    </main>
+
+    <div id="eventDetail" class="fixed inset-0 bg-white z-[100] hidden p-4 md:p-8 h-screen w-screen overflow-hidden">
+        <button onclick="closeDetail()" class="absolute top-6 right-6 text-2xl font-bold bg-black text-white px-4 py-2 z-[120] hover:scale-105 active:scale-95 transition-transform">X</button>
+
+        <div class="flex flex-col md:flex-row w-full h-full border-4 border-black gap-0 overflow-y-auto md:overflow-hidden bg-white">
+            
+            <div class="w-full md:w-1/2 h-[45vh] md:h-full border-b-4 md:border-b-0 md:border-r-4 border-black bg-zinc-200 flex-shrink-0">
+                <img id="detailImg" src="" class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all">
+            </div>
+
+            <div class="w-full md:w-1/2 h-auto md:h-full flex flex-col bg-white overflow-hidden p-6 justify-between gap-6">
+                
+                <div class="space-y-6">
+                    <div class="w-full overflow-hidden border-b border-black pb-4">
+                        <span class="text-[9px] block opacity-50 font-bold mb-1">// EVENTO_TITULO_</span>
+                        <h2 id="detailTitle" class="font-bold tracking-tighter leading-[0.9] italic uppercase text-3xl md:text-5xl lg:text-6xl break-words">CARGANDO...</h2>
+                        <div class="flex gap-2 mt-4">
+                            <span id="detailStatusTag" class="text-[9px] font-bold bg-black text-white px-2 py-1 tracking-widest">STATUS: --</span>
+                            <span class="text-[9px] font-bold border border-black px-2 py-1 tracking-widest italic uppercase">SYS_REF_2026</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 border-b border-black pb-6 gap-4">
+                        <div>
+                            <span class="text-[9px] block opacity-50 font-bold">// FECHA</span>
+                            <p id="detailDate" class="text-xl md:text-2xl font-bold italic">--.--.26</p>
+                        </div>
+                        <div>
+                            <span class="text-[9px] block opacity-50 font-bold">// UBICACIÓN</span>
+                            <p id="detailLoc" class="text-xl md:text-2xl font-bold italic text-zinc-600">GUATEMALA</p>
+                        </div>
+                    </div>
+
+                    <div id="detailDescContainer" class="p-4 bg-zinc-100 italic text-[10px] md:text-xs leading-tight border border-black max-h-[15vh] md:max-h-[25vh] overflow-y-auto">
+                        ADVERTENCIA: ESTA ES UNA ACTIVIDAD DE CARÁCTER INDEPENDIENTE. LOS PROTOCOLOS DE ACCESO SERÁN ENVIADOS POR EL CANAL DE COMPRA-VENTA DEL ORGANIZADOR.
+                    </div>
+                </div>
+
+                <div class="w-full pt-4 border-t border-black md:border-t-0 mt-auto">
+                    <button id="detailBuyBtn" class="w-full bg-black text-white py-4 md:py-6 text-xl md:text-3xl font-bold hover:bg-zinc-900 active:bg-zinc-800 transition-all uppercase tracking-wider">
+                        ADQUIRIR_ACCESO_ ↗
+                    </button>
+                    <p class="text-[8px] mt-3 opacity-40 text-center tracking-[0.4em]">CÓDIGO_REF: SYS_AUTH_LINK_OK</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+    // URL DE EXPORTACIÓN CSV DE TU HOJA PÚBLICA
+    const sheetId = '1tSyyiysUjTcgV1Pm-r_5p2-jQRdlhSoVPT7k44R02FM';
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=1202457632`; 
+
+    const container = document.getElementById('eventsContainer');
+    const matchCount = document.getElementById('matchCount');
+    const totalCount = document.getElementById('totalCount');
+    const searchInput = document.getElementById('searchInput');
+    const modal = document.getElementById('eventDetail');
+    
+    let globalEvents = [];
+    let currentCategory = 'all';
+
+    // FUNCIÓN PARSEADORA BLINDADA
+    function parseCSV(text) {
+        const lines = text.split('\n');
+        const result = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            
+            let cleanCells = [];
+            let row = lines[i];
+            let insideQuote = false;
+            let currentCell = '';
+            
+            for (let j = 0; j < row.length; j++) {
+                let char = row[j];
+                if (char === '"') {
+                    insideQuote = !insideQuote; 
+                } else if (char === ',' && !insideQuote) {
+                    cleanCells.push(currentCell.trim());
+                    currentCell = '';
+                } else {
+                    currentCell += char;
+                }
+            }
+            cleanCells.push(currentCell.trim());
+            
+            if (cleanCells.length >= 6) {
+                let rawFlyerUrl = cleanCells[6] || '';
+                let finalFlyerUrl = rawFlyerUrl;
+                
+                if (rawFlyerUrl.includes('drive.google.com')) {
+                    let id = '';
+                    if (rawFlyerUrl.includes('id=')) {
+                        let parts = rawFlyerUrl.split('id=');
+                        if (parts[1]) { id = parts[1].split('&')[0]; }
+                    } 
+                    else if (rawFlyerUrl.includes('/d/')) {
+                        let parts = rawFlyerUrl.split('/d/');
+                        if (parts[1]) { id = parts[1].split('/')[0]; }
+                    }
+                    
+                    if (id) {
+                        finalFlyerUrl = `https://lh3.googleusercontent.com/d/${id}`;
+                    }
+                }
+
+                result.push({
+                    id: i,
+                    timestamp: cleanCells[0],
+                    fechaRaw: cleanCells[2],
+                    titulo: cleanCells[1],
+                    categoria: cleanCells[3].toUpperCase(),
+                    ubicacion: cleanCells[4],
+                    status: cleanCells[5],
+                    descripcion: cleanCells[7] || '', // Columna reservada para el párrafo corto
+                    linkCompra: cleanCells[8] || '#',  // Columna reservada para el link de redirección
+                    flyerUrl: finalFlyerUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500'
+                });
+            }
+        }
+        return result;
+    }
+
+    // FORMATEADOR DE FECHA A DD.MM.AA
+    function formatEventDate(dateString) {
+        if (!dateString) return '--.--.--';
+        
+        if (dateString.includes('-')) {
+            const parts = dateString.split('-'); 
+            if (parts.length === 3) {
+                const anoCorto = parts[0].substring(2); 
+                return `${parts[2]}.${parts[1]}.${anoCorto}`;
+            }
+        }
+        
+        if (dateString.includes('/')) {
+            const parts = dateString.split('/'); 
+            if (parts.length === 3) {
+                const anoCorto = parts[2].trim().substring(2); 
+                return `${parts[0]}.${parts[1]}.${anoCorto}`;
+            }
+        }
+        
+        return dateString;
+    }
+
+    // RENDERIZAR FILAS EN LA TABLA INTERACTIVA
+    function renderTable(events) {
+        container.innerHTML = '';
+        if (events.length === 0) {
+            container.innerHTML = `<tr><td colspan="5" class="text-center font-bold py-10 opacity-40">// NO_SE_ENCONTRARON_REGISTROS</td></tr>`;
+            if(matchCount) matchCount.innerText = '00';
+            return;
+        }
+
+        events.forEach(event => {
+            const displayDate = formatEventDate(event.fechaRaw);
+            const tr = document.createElement('tr');
+            tr.className = 'event-row row-visible border-b-2 border-black';
+            tr.setAttribute('data-category', event.categoria);
+            tr.setAttribute('data-id', event.id);
+
+            tr.innerHTML = `
+                <td class="text-center font-bold cursor-pointer px-2 whitespace-nowrap clickable-cell">${displayDate}</td>
+                <td class="flex justify-center p-4 clickable-cell">
+                    <img src="${event.flyerUrl}" class="flyer-thumb" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200'">
+                </td>
+                <td class="clickable-cell">
+                    <div class="text-2xl md:text-5xl font-bold tracking-tighter event-name">${event.titulo}</div>
+                    <span class="text-[10px] border border-black px-1 category-label">${event.categoria}</span>
+                </td>
+                <td class="hidden md:table-cell text-sm opacity-60 font-bold clickable-cell">${event.ubicacion}</td>
+                <td class="text-center text-[10px] font-bold tracking-tight clickable-cell">${event.status}</td>
+            `;
+
+            tr.querySelectorAll('.clickable-cell').forEach(cell => {
+                cell.addEventListener('click', () => openDetail(event.id));
+            });
+
+            container.appendChild(tr);
+        });
+
+        const visibleCount = events.length;
+        if(matchCount) matchCount.innerText = visibleCount < 10 ? '0' + visibleCount : visibleCount;
+    }
+
+    // CONEXIÓN ASÍNCRONA (FETCH API) CON GOOGLE SHEETS
+    async function initSystem() {
+        try {
+            const response = await fetch(csvUrl);
+            if (!response.ok) throw new Error('ERROR_CONEXION_BASE_DATOS');
+            const csvText = await response.text();
+            
+            globalEvents = parseCSV(csvText);
+            
+            if(totalCount) totalCount.innerText = globalEvents.length < 10 ? '0' + globalEvents.length : globalEvents.length;
+            if(matchCount) matchCount.innerText = globalEvents.length < 10 ? '0' + globalEvents.length : globalEvents.length;
+            
+            renderTable(globalEvents);
+        } catch (error) {
+            console.error(error);
+            container.innerHTML = `<tr><td colspan="5" class="text-center font-bold py-10 text-red-600">// SYSTEM_CRITICAL_ERROR: FAIL_DB_FETCH</td></tr>`;
+        }
+    }
+
+    function filterCategory(cat) {
+        currentCategory = cat;
+        document.querySelectorAll('.industrial-tag').forEach(btn => {
+            btn.classList.remove('active');
+            if(btn.innerText.includes(cat) || (cat === 'all' && btn.innerText.includes('TODO'))) btn.classList.add('active');
+        });
+        applyFilterAndSearch();
+    }
+
+    function applyFilterAndSearch() {
+        const term = searchInput ? searchInput.value.toUpperCase() : '';
+        const rows = document.querySelectorAll('.event-row');
+        let count = 0;
+
+        rows.forEach(row => {
+            const name = row.querySelector('.event-name').innerText.toUpperCase();
+            const category = row.getAttribute('data-category');
+            
+            const matchesCategory = (currentCategory === 'all' || category === currentCategory);
+            const matchesSearch = name.includes(term);
+
+            if (matchesCategory && matchesSearch) {
+                row.classList.remove('row-hidden'); row.classList.add('row-visible');
+                count++;
+            } else {
+                row.classList.remove('row-visible'); row.classList.add('row-hidden');
+            }
+        });
+
+        if(matchCount) matchCount.innerText = count < 10 ? '0' + count : count;
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilterAndSearch);
+    }
+
+    // ELEMENTOS DE CONTROL DEL DETALLE MODAL RESPONSIVO
+    const title = document.getElementById('detailTitle');
+    const dateDisp = document.getElementById('detailDate');
+    const locDisp = document.getElementById('detailLoc');
+    const imgDisp = document.getElementById('detailImg');
+    const statusTag = document.getElementById('detailStatusTag');
+    const descContainer = document.getElementById('detailDescContainer');
+    const buyBtn = document.getElementById('detailBuyBtn');
+
+    function openDetail(eventId) {
+        const targetEvent = globalEvents.find(e => e.id === eventId);
+        if (!targetEvent) return;
+
+        title.innerText = targetEvent.titulo;
+        dateDisp.innerText = formatEventDate(targetEvent.fechaRaw);
+        locDisp.innerText = targetEvent.ubicacion;
+        imgDisp.src = targetEvent.flyerUrl;
+        statusTag.innerText = `STATUS: ${targetEvent.status.toUpperCase()}`;
+        
+        // Cargar reseña si existe en tu Google Sheets
+        if (targetEvent.descripcion) {
+            descContainer.innerText = targetEvent.descripcion.toUpperCase();
+        } else {
+            descContainer.innerText = "ADVERTENCIA: ESTA ES UNA ACTIVIDAD DE CARÁCTER INDEPENDIENTE. LOS PROTOCOLOS DE ACCESO SERÁN ENVIADOS POR EL CANAL DE COMPRA-VENTA DEL ORGANIZADOR.";
+        }
+
+        // Configurar botón de Adquirir Acceso (Opción 2)
+        if (targetEvent.linkCompra && targetEvent.linkCompra !== '#') {
+            buyBtn.onclick = () => window.open(targetEvent.linkCompra, '_blank');
+            buyBtn.style.opacity = "1";
+            buyBtn.style.pointerEvents = "auto";
+        } else {
+            buyBtn.onclick = null;
+            buyBtn.style.opacity = "0.5"; // Deshabilitado visualmente si no hay link
+        }
+
+        // Ajuste automático brutalista de tamaño de texto
+        title.style.fontSize = "clamp(2rem, 6vw, 4rem)";
+        setTimeout(() => {
+            const containerWidth = title.parentElement.offsetWidth;
+            const textWidth = title.scrollWidth;
+            if (textWidth > containerWidth) {
+                const ratio = (containerWidth / textWidth) * 0.95;
+                const currentSize = parseFloat(window.getComputedStyle(title).fontSize);
+                title.style.fontSize = (currentSize * ratio) + "px";
+            }
+        }, 30);
+
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDetail() {
+        modal.classList.add('hidden'); modal.classList.remove('flex');
+        document.body.style.overflow = 'auto';
+    }
+
+    document.addEventListener('DOMContentLoaded', initSystem);
+</script>
+</body>
+</html>
