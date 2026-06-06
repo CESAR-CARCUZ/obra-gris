@@ -165,16 +165,16 @@
             const cleanCells = matches.map(cell => cell.replace(/^"|"$/g, '').trim());
             
             if (cleanCells.length >= 6) {
-                result.push({
-                    timestamp: cleanCells[0],
-                    fechaRaw: cleanCells[1],  // Formato: AAAA-MM-DD del calendario nativo
-                    titulo: cleanCells[2],
-                    categoria: cleanCells[3].toUpperCase(),
-                    ubicacion: cleanCells[4],
-                    status: cleanCells[5],
-                    flyerUrl: cleanCells[6] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500' // Placeholder negro abstracto por defecto
-                });
-            }
+    result.push({
+        timestamp: cleanCells[0],
+        fechaRaw: cleanCells[2],  // Cambiado a 2 para atrapar la fecha real
+        titulo: cleanCells[1],   // Cambiado a 1 para atrapar el texto real ("EVENTO", "UP")
+        categoria: cleanCells[3].toUpperCase(),
+        ubicacion: cleanCells[4],
+        status: cleanCells[5],
+        flyerUrl: cleanCells[6] || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500'
+    });
+}
         }
         return result;
     }
