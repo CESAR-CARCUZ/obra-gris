@@ -221,22 +221,27 @@
         return result;
     }
 
+    // FORMATEADOR DE FECHA: Transforma de MM/DD/AAAA a DD.MM.AA
     function formatEventDate(dateString) {
         if (!dateString) return '--.--.--';
         
-        if (dateString.includes('-')) {
-            const parts = dateString.split('-'); 
+        // Si viene en formato MM/DD/AAAA (Tu formato actual de Sheets)
+        if (dateString.includes('/')) {
+            const parts = dateString.split('/'); // [MM, DD, AAAA]
             if (parts.length === 3) {
-                const anoCorto = parts[0].substring(2); 
-                return `${parts[2]}.${parts[1]}.${anoCorto}`;
+                const anoCorto = parts[2].trim().substring(2); // Toma los últimos 2 dígitos del año
+                const dia = parts[1].padStart(2, '0');        // Asegura 2 dígitos para el día (ej: "5" -> "05")
+                const mes = parts[0].padStart(2, '0');        // Asegura 2 dígitos para el mes
+                return `${dia}.${mes}.${anoCorto}`;            // Retorna DD.MM.AA impecable
             }
         }
         
-        if (dateString.includes('/')) {
-            const parts = dateString.split('/'); 
+        // Si viene por guiones (AAAA-MM-DD)
+        if (dateString.includes('-')) {
+            const parts = dateString.split('-'); // [AAAA, MM, DD]
             if (parts.length === 3) {
-                const anoCorto = parts[2].trim().substring(2); 
-                return `${parts[0]}.${parts[1]}.${anoCorto}`;
+                const anoCorto = parts[0].substring(2);
+                return `${parts[2]}.${parts[1]}.${anoCorto}`;
             }
         }
         
@@ -329,7 +334,7 @@
         applyFilterAndSearch();
     }
 
-    // LOGICA UNIFICADA DE ORDENAMIENTO CRONOLÓGICO ULTRA-ROBUSTO
+    // LOGICA UNIFICADA DE ORDENAMIENTO CRONOLÓGICO CALIBRADA (MES/DÍA/AÑO)
     function applyFilterAndSearch() {
         const term = searchInput ? searchInput.value.toUpperCase() : '';
         
@@ -338,35 +343,35 @@
             return event.titulo.toUpperCase().includes(term);
         });
 
-        // 2. ORDEN CRONOLÓGICO ESTRICTO (Mapeo manual de componentes)
+        // 2. ORDEN CRONOLÓGICO ESTRICTO (Calibrado para Mes/Día/Año)
         filteredEvents.sort((a, b) => {
             const parseToTimestamp = (dateStr) => {
                 if (!dateStr) return 0;
                 
                 let day, month, year;
                 
-                // Si viene separado por guiones (ej. 2026-06-15 o 15-06-2026)
-                if (dateStr.includes('-')) {
+                // Si viene separado por diagonales (Formato nativo de tu Sheets: MM/DD/AAAA)
+                if (dateStr.includes('/')) {
+                    const parts = dateStr.split('/');
+                    month = parseInt(parts[0], 10) - 1; // El primer elemento es el MES
+                    day = parseInt(parts[1], 10);       // El segundo elemento es el DÍA
+                    year = parseInt(parts[2], 10);      // El tercer elemento es el AÑO
+                }
+                // Por si acaso Google Forms inyecta alguna con guiones (AAAA-MM-DD)
+                else if (dateStr.includes('-')) {
                     const parts = dateStr.split('-');
-                    if (parts[0].length === 4) { // Formato AAAA-MM-DD
+                    if (parts[0].length === 4) {
                         year = parseInt(parts[0], 10);
                         month = parseInt(parts[1], 10) - 1;
                         day = parseInt(parts[2], 10);
-                    } else { // Formato DD-MM-AAAA
+                    } else {
                         day = parseInt(parts[0], 10);
                         month = parseInt(parts[1], 10) - 1;
                         year = parseInt(parts[2], 10);
                     }
-                } 
-                // Si viene separado por diagonales (ej. 15/06/2026)
-                else if (dateStr.includes('/')) {
-                    const parts = dateStr.split('/');
-                    day = parseInt(parts[0], 10);
-                    month = parseInt(parts[1], 10) - 1;
-                    year = parseInt(parts[2], 10);
                 }
                 
-                // Crear la fecha asegurando que no se desfase por la zona horaria (seteando hora a mediodía)
+                // Crear la fecha con hora fija al mediodía para evitar desfases de zona horaria
                 if (day && !isNaN(month) && year) {
                     return new Date(year, month, day, 12, 0, 0).getTime();
                 }
