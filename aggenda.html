@@ -302,36 +302,80 @@
         }
     }
 
+    // FILTRO INTELIGENTE CON APAGADO DE PALANCA
     function filterCategory(cat) {
-        currentCategory = cat;
+        // Si el usuario toca la categoría que ya estaba activa, se apaga el filtro y vuelve a 'all'
+        if (currentCategory === cat && cat !== 'all') {
+            currentCategory = 'all';
+        } else {
+            currentCategory = cat;
+        }
+
+        // Actualizar estados visuales de los botones industriales
         document.querySelectorAll('.industrial-tag').forEach(btn => {
             btn.classList.remove('active');
-            if(btn.innerText.includes(cat) || (cat === 'all' && btn.innerText.includes('TODO'))) btn.classList.add('active');
-        });
-        applyFilterAndSearch();
-    }
-
-    function applyFilterAndSearch() {
-        const term = searchInput ? searchInput.value.toUpperCase() : '';
-        const rows = document.querySelectorAll('.event-row');
-        let count = 0;
-
-        rows.forEach(row => {
-            const name = row.querySelector('.event-name').innerText.toUpperCase();
-            const category = row.getAttribute('data-category');
             
-            const matchesCategory = (currentCategory === 'all' || category === currentCategory);
-            const matchesSearch = name.includes(term);
-
-            if (matchesCategory && matchesSearch) {
-                row.classList.remove('row-hidden'); row.classList.add('row-visible');
-                count++;
-            } else {
-                row.classList.remove('row-visible'); row.classList.add('row-hidden');
+            // Si el filtro está apagado, activar el botón VER_TODO
+            if (currentCategory === 'all' && btn.innerText.includes('TODO')) {
+                btn.classList.add('active');
+            } 
+            // Si hay filtro activo, encender el botón correspondiente
+            else if (btn.innerText.includes(currentCategory) && currentCategory !== 'all') {
+                btn.classList.add('active');
             }
         });
 
-        if(matchCount) matchCount.innerText = count < 10 ? '0' + count : count;
+        // Ejecutar el nuevo ordenamiento y renderizado
+        applyFilterAndSearch();
+    }
+
+    // LOGICA UNIFICADA DE REORDENAMIENTO: FILTRO (AL PRINCIPIO) + BUSCADOR
+    function applyFilterAndSearch() {
+        const term = searchInput ? searchInput.value.toUpperCase() : '';
+        
+        // 1. Filtrar primero por el término escrito en el buscador (si hay algo escrito)
+        let filteredEvents = globalEvents.filter(event => {
+            return event.titulo.toUpperCase().includes(term);
+        });
+
+        // 2. Si hay una categoría seleccionada (diferente a 'all'), reordenamos el array
+        if (currentCategory !== 'all') {
+            filteredEvents.sort((a, b) => {
+                const aMatches = a.categoria === currentCategory;
+                const bMatches = b.categoria === currentCategory;
+                
+                if (aMatches && !bMatches) return -1; // 'a' coincide, va primero
+                if (!aMatches && bMatches) return 1;  // 'b' coincide, va primero
+                return 0;                             // si ambos coinciden o no, se quedan en su orden original
+            });
+        }
+
+        // 3. Mandar el array reordenado al renderizador de la tabla
+        renderTable(filteredEvents);
+
+        // 4. Aplicar los estilos visuales brutalistas (opacidad) a los que no pertenecen a la categoría
+        const rows = document.querySelectorAll('.event-row');
+        let matchCounter = 0;
+
+        rows.forEach(row => {
+            const rowCategory = row.getAttribute('data-category');
+            
+            // Si está en 'all' o la fila coincide con la categoría activa
+            if (currentCategory === 'all' || rowCategory === currentCategory) {
+                row.classList.remove('row-hidden');
+                row.classList.add('row-visible');
+                matchCounter++;
+            } else {
+                // Estilo brutalista: no desaparece, se difumina abajo de la tabla
+                row.classList.remove('row-visible');
+                row.classList.add('row-hidden');
+            }
+        });
+
+        // Actualizar el contador del sistema con los elementos activos reales
+        if (matchCount) {
+            matchCount.innerText = matchCounter < 10 ? '0' + matchCounter : matchCounter;
+        }
     }
 
     if (searchInput) {
