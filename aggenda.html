@@ -331,7 +331,7 @@
         applyFilterAndSearch();
     }
 
-    // LOGICA UNIFICADA DE ORDENAMIENTO CRONOLÓGICO SEGURO
+// LOGICA UNIFICADA DE ORDENAMIENTO CRONOLÓGICO INDESTRUCTIBLE
     function applyFilterAndSearch() {
         const term = searchInput ? searchInput.value.toUpperCase() : '';
         
@@ -340,16 +340,34 @@
             return event.titulo.toUpperCase().includes(term);
         });
 
-        // 2. ORDEN CRONOLÓGICO NATIVO ULTRA-COMPATIBLE
+        // 2. ORDEN CRONOLÓGICO ULTRA-ESTRICTO (Conversión matemática manual)
         filteredEvents.sort((a, b) => {
-            if (!a.fechaRaw) return 1;
-            if (!b.fechaRaw) return -1;
+            const getNumericValue = (dateStr) => {
+                if (!dateStr) return 0;
+                
+                // Limpiar cualquier espacio extraño y separar por diagonales o guiones
+                const cleanStr = dateStr.replace(/-/g, '/').trim();
+                const parts = cleanStr.split('/');
+                
+                if (parts.length === 3) {
+                    let month = parseInt(parts[0], 10);
+                    let day = parseInt(parts[1], 10);
+                    let year = parseInt(parts[2], 10);
+                    
+                    // Si por error el año viene de 2 dígitos (ej: 26 -> 2026)
+                    if (year < 100) year += 2000;
+                    
+                    // Validar que sean números reales antes de calcular
+                    if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
+                        // Creamos un valor numérico puro para comparar: Año*10000 + Mes*100 + Día
+                        // Ejemplo: 15 de Junio de 2026 se convierte en: 20260615 (Un número entero perfecto)
+                        return (year * 10000) + (month * 100) + day;
+                    }
+                }
+                return 0;
+            };
 
-            // Date.parse convierte CUALQUIER formato de texto válido a un número matemático puro (timestamp)
-            const timeA = Date.parse(a.fechaRaw) || 0;
-            const timeB = Date.parse(b.fechaRaw) || 0;
-
-            return timeA - timeB; // Orden ascendente estricto (El más cercano primero)
+            return getNumericValue(a.fechaRaw) - getNumericValue(b.fechaRaw);
         });
 
         // 3. EFECTO IMÁN: Si hay una categoría seleccionada, flota al inicio manteniendo su orden cronológico
