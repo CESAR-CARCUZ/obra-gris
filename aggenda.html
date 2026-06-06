@@ -245,13 +245,44 @@
         return `${dia}.${mes}.${ano}`;
     } // <--- AQUÍ ESTÁ LA LLAVE QUE FALTABA PARA CERRAR LA FUNCIÓN
 
+    // RENDERIZAR FILAS EN LA TABLA INTERACTIVA (CON FILTRO DE ORDENACIÓN DIRECTO)
     function renderTable(events) {
         container.innerHTML = '';
+        
         if (events.length === 0) {
             container.innerHTML = `<tr><td colspan="5" class="text-center font-bold py-10 opacity-40">// NO_SE_ENCONTRARON_REGISTROS</td></tr>`;
             if(matchCount) matchCount.innerText = '00';
             return;
         }
+
+        // ============================================================
+        // DETECTOR NUCLEAR DE FECHAS (SABER QUÉ RECIBE LA TABLA)
+        // ============================================================
+        console.log("--- INICIO DE AUDITORÍA EN TABLA ---");
+        events.forEach(e => {
+            console.log(`Evento: ${e.titulo} | Valor en fechaRaw: "${e.fechaRaw}"`);
+        });
+        // ============================================================
+
+        // ORDENAMIENTO CRONOLÓGICO DIRECTO EN RENDER
+        events.sort((a, b) => {
+            const getVal = (str) => {
+                if (!str) return 0;
+                const clean = str.replace(/-/g, '/').trim();
+                const parts = clean.split('/');
+                if (parts.length === 3) {
+                    let m = parseInt(parts[0], 10);
+                    let d = parseInt(parts[1], 10);
+                    let y = parseInt(parts[2], 10);
+                    if (y < 100) y += 2000;
+                    if (!isNaN(m) && !isNaN(d) && !isNaN(y)) {
+                        return (y * 10000) + (m * 100) + d;
+                    }
+                }
+                return 0;
+            };
+            return getVal(a.getVal) - getVal(b.getVal); // Cambiado temporalmente a orden puro
+        });
 
         events.forEach(event => {
             const displayDate = formatEventDate(event.fechaRaw);
@@ -260,7 +291,6 @@
             tr.setAttribute('data-category', event.categoria);
             tr.setAttribute('data-id', event.id);
 
-            // CORRECCIÓN DE INTERACCIÓN: Solo el Flyer y el Nombre llevan la clase 'clickable-cell'
             tr.innerHTML = `
                 <td class="text-center font-bold px-2 whitespace-nowrap">${displayDate}</td>
                 <td class="flex justify-center p-4 clickable-cell">
@@ -274,7 +304,6 @@
                 <td class="text-center text-[10px] font-bold tracking-tight">${event.status}</td>
             `;
 
-            // Escuchar el evento de clic ÚNICAMENTE en los contenedores autorizados
             tr.querySelectorAll('.clickable-cell').forEach(cell => {
                 cell.addEventListener('click', () => openDetail(event.id));
             });
