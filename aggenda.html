@@ -329,50 +329,63 @@
         applyFilterAndSearch();
     }
 
-    // LOGICA UNIFICADA DE REORDENAMIENTO: FILTRO (AL PRINCIPIO) + BUSCADOR
+    // LOGICA UNIFICADA DE ORDENAMIENTO CRONOLÓGICO + FILTRO + BUSCADOR
     function applyFilterAndSearch() {
         const term = searchInput ? searchInput.value.toUpperCase() : '';
         
-        // 1. Filtrar primero por el término escrito en el buscador (si hay algo escrito)
+        // 1. Filtrar primero por el término escrito en el buscador
         let filteredEvents = globalEvents.filter(event => {
             return event.titulo.toUpperCase().includes(term);
         });
 
-        // 2. Si hay una categoría seleccionada (diferente a 'all'), reordenamos el array
+        // 2. ORDEN CRONOLÓGICO AUTOMÁTICO (El más cercano en fecha va primero)
+        filteredEvents.sort((a, b) => {
+            // Convertimos las strings de fecha "AAAA-MM-DD" o "DD/MM/AAAA" a objetos Date comparables
+            const parseToDate = (dateStr) => {
+                if (!dateStr) return new Date(0);
+                if (dateStr.includes('-')) return new Date(dateStr); // Formato AAAA-MM-DD
+                if (dateStr.includes('/')) {
+                    const parts = dateStr.split('/'); // Formato DD/MM/AAAA
+                    return new Date(parts[2], parts[1] - 1, parts[0]);
+                }
+                return new Date(0);
+            };
+
+            return parseToDate(a.fechaRaw) - parseToDate(b.fechaRaw);
+        });
+
+        // 3. EFECTO IMÁN: Si hay una categoría seleccionada, esa categoría salta al inicio de la lista
         if (currentCategory !== 'all') {
             filteredEvents.sort((a, b) => {
                 const aMatches = a.categoria === currentCategory;
                 const bMatches = b.categoria === currentCategory;
                 
-                if (aMatches && !bMatches) return -1; // 'a' coincide, va primero
-                if (!aMatches && bMatches) return 1;  // 'b' coincide, va primero
-                return 0;                             // si ambos coinciden o no, se quedan en su orden original
+                if (aMatches && !bMatches) return -1; // Si 'a' coincide, va arriba
+                if (!aMatches && bMatches) return 1;  // Si 'b' coincide, va arriba
+                return 0;
             });
         }
 
-        // 3. Mandar el array reordenado al renderizador de la tabla
+        // 4. Mandar la lista final (Ordenada por Fecha + Categoría) al renderizador
         renderTable(filteredEvents);
 
-        // 4. Aplicar los estilos visuales brutalistas (opacidad) a los que no pertenecen a la categoría
+        // 5. Aplicar los estilos visuales brutalistas (opacidad)
         const rows = document.querySelectorAll('.event-row');
         let matchCounter = 0;
 
         rows.forEach(row => {
             const rowCategory = row.getAttribute('data-category');
             
-            // Si está en 'all' o la fila coincide con la categoría activa
             if (currentCategory === 'all' || rowCategory === currentCategory) {
                 row.classList.remove('row-hidden');
                 row.classList.add('row-visible');
                 matchCounter++;
             } else {
-                // Estilo brutalista: no desaparece, se difumina abajo de la tabla
                 row.classList.remove('row-visible');
                 row.classList.add('row-hidden');
             }
         });
 
-        // Actualizar el contador del sistema con los elementos activos reales
         if (matchCount) {
             matchCount.innerText = matchCounter < 10 ? '0' + matchCounter : matchCounter;
         }
