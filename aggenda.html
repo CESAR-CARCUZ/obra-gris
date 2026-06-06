@@ -245,7 +245,7 @@
         return `${dia}.${mes}.${ano}`;
     } // <--- AQUÍ ESTÁ LA LLAVE QUE FALTABA PARA CERRAR LA FUNCIÓN
 
-    // RENDERIZAR FILAS EN LA TABLA INTERACTIVA CORREGIDA
+    // RENDERIZAR FILAS EN LA TABLA INTERACTIVA (ORDEN CRONOLÓGICO + EFECTO IMÁN FUSIONADOS)
     function renderTable(events) {
         container.innerHTML = '';
         
@@ -255,29 +255,39 @@
             return;
         }
 
-        // ORDENAMIENTO CRONOLÓGICO PERFECTO (Calibrado para MM/DD/AAAA)
+        // 1. PASO UNO: ORDEN CRONOLÓGICO PURO (MM/DD/AAAA)
         events.sort((a, b) => {
             const getNumericValue = (dateStr) => {
                 if (!dateStr) return 0;
                 const clean = dateStr.replace(/-/g, '/').trim();
                 const parts = clean.split('/');
                 if (parts.length === 3) {
-                    let m = parseInt(parts[0], 10); // MES
-                    let d = parseInt(parts[1], 10); // DÍA
-                    let y = parseInt(parts[2], 10); // AÑO
+                    let m = parseInt(parts[0], 10);
+                    let d = parseInt(parts[1], 10);
+                    let y = parseInt(parts[2], 10);
                     if (y < 100) y += 2000;
                     if (!isNaN(m) && !isNaN(d) && !isNaN(y)) {
-                        // Devuelve un entero puro AAAAMMDD para comparar matemáticamente
                         return (y * 10000) + (m * 100) + d;
                     }
                 }
                 return 0;
             };
-            // CORREGIDO: Ahora sí compara las propiedades reales de los eventos
             return getNumericValue(a.fechaRaw) - getNumericValue(b.fechaRaw);
         });
 
-        // Dibujar las filas en la pantalla en orden cronológico estricto
+        // 2. PASO DOS: EFECTO IMÁN (Si hay categoría seleccionada, flota al inicio respetando su fecha)
+        if (currentCategory !== 'all') {
+            events.sort((a, b) => {
+                const aMatches = a.categoria === currentCategory;
+                const bMatches = b.categoria === currentCategory;
+                
+                if (aMatches && !bMatches) return -1; // Si 'a' es de la categoría, va para arriba
+                if (!aMatches && bMatches) return 1;  // Si 'b' es de la categoría, va para arriba
+                return 0;                             // Si ambos coinciden o ninguno, preserva el orden cronológico de arriba
+            });
+        }
+
+        // 3. PASO TRES: Dibujar las filas en la pantalla
         events.forEach(event => {
             const displayDate = formatEventDate(event.fechaRaw);
             const tr = document.createElement('tr');
@@ -305,25 +315,25 @@
             container.appendChild(tr);
         });
 
-        const visibleCount = events.length;
-        if(matchCount) matchCount.innerText = visibleCount < 10 ? '0' + visibleCount : visibleCount;
-    }
+        // 4. PASO CUATRO: Aplicar las opacidades brutalistas a las filas en pantalla
+        const rows = document.querySelectorAll('.event-row');
+        let matchCounter = 0;
 
-    async function initSystem() {
-        try {
-            const response = await fetch(csvUrl);
-            if (!response.ok) throw new Error('ERROR_CONEXION_BASE_DATOS');
-            const csvText = await response.text();
+        rows.forEach(row => {
+            const rowCategory = row.getAttribute('data-category');
             
-            globalEvents = parseCSV(csvText);
-            
-            if(totalCount) totalCount.innerText = globalEvents.length < 10 ? '0' + globalEvents.length : globalEvents.length;
-            if(matchCount) matchCount.innerText = globalEvents.length < 10 ? '0' + globalEvents.length : globalEvents.length;
-            
-            renderTable(globalEvents);
-        } catch (error) {
-            console.error(error);
-            container.innerHTML = `<tr><td colspan="5" class="text-center font-bold py-10 text-red-600">// SYSTEM_CRITICAL_ERROR: FAIL_DB_FETCH</td></tr>`;
+            if (currentCategory === 'all' || rowCategory === currentCategory) {
+                row.classList.remove('row-hidden');
+                row.classList.add('row-visible');
+                matchCounter++;
+            } else {
+                row.classList.remove('row-visible');
+                row.classList.add('row-hidden');
+            }
+        });
+
+        if (matchCount) {
+            matchCount.innerText = matchCounter < 10 ? '0' + matchCounter : matchCounter;
         }
     }
 
